@@ -1,10 +1,22 @@
 # cddl-map
 
-`cddl-map` extracts declared CBOR EDN/CDN and CDDL blocks from RFCXML, materializes their dependency graph, and validates them with Carsten Bormann's [`cddlc`](https://github.com/cabo/cddlc).
+RFCs and Internet-Drafts often split CDDL schemas and CBOR examples across
+multiple XML blocks or documents. `cddl-map` is a reproducible wiring layer:
+it extracts declared EDN/CDN and CDDL blocks from RFCXML, materializes their
+dependency graph, and validates them with Carsten Bormann's
+[`cddlc`](https://github.com/cabo/cddlc).
 
 **`cddlc` is the sole semantic engine.** `cddl-map` does not parse CDDL, build a CDDL AST, resolve CDDL names, or parse/rewrite EDN. It only resolves documents, selects XML character data, stages files and `;# include` wrappers, invokes `cddlc`, and reports its result.
 
 This MVP targets Linux with Ruby 3.2 or newer. It pins `cddlc` 0.4.5 and the validator dependencies that version does not declare itself.
+
+## How it works
+
+1. A YAML manifest names source documents, CDDL blocks, dependencies, and EDN sets.
+2. Exact RFCXML character data is selected without rewriting the CDDL or EDN.
+3. The declared graph becomes deterministic cddlc `;# include` modules in an isolated directory.
+4. cddlc performs schema/module checks and validates each example against its entry rule.
+5. A lockfile pins document, selector, and extracted-block hashes to detect drift.
 
 ## Scope
 
@@ -139,7 +151,7 @@ Current cddlc CLI constraints are intentionally visible:
 - `cddlc -u -t cddl` reports undefined names on stdout but can exit zero, so `cddl-map` treats `;;; *** undefined:` output as failure.
 - Schema-check stderr is treated as failure because cddlc reports module/directive problems there without consistently changing exit status.
 - Validation failure details are cddlc's unstable YAML diagnostic dump. `cddl-map` does not parse that structure; it only uses the YAML document marker to distinguish a schema rejection from EDN parse/runtime failure.
-- cddlc's validator is still a preview and does not implement every CDDL construct. Those limitations are cddlc limitations, not replaced with local semantics.
+- cddlc's validator is still a preview and does not implement every CDDL construct; in 0.4.5, data validation against CDDL maps reports `UNIMPLEMENTED`. Those limitations are not replaced with local semantics.
 
 ## Development
 
