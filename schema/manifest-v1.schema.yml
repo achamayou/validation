@@ -1,0 +1,109 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://github.com/achamayou/validation/schema/manifest-v1
+title: cddl-map manifest version 1
+type: object
+required: [version, documents, cddl, edn]
+additionalProperties: false
+properties:
+  version: {const: 1}
+  documents:
+    type: object
+    minProperties: 1
+    propertyNames: {$ref: "#/$defs/identifier"}
+    additionalProperties: {$ref: "#/$defs/document"}
+  cddl:
+    type: object
+    minProperties: 1
+    propertyNames: {$ref: "#/$defs/identifier"}
+    additionalProperties: {$ref: "#/$defs/cddlBlock"}
+  edn:
+    type: object
+    minProperties: 1
+    propertyNames: {$ref: "#/$defs/identifier"}
+    additionalProperties: {$ref: "#/$defs/ednSet"}
+
+$defs:
+  identifier:
+    type: string
+    pattern: "^[A-Za-z0-9][A-Za-z0-9_.-]*$"
+  nonEmptyString: {type: string, minLength: 1}
+  sha256:
+    type: string
+    pattern: "^[0-9a-fA-F]{64}$"
+
+  document:
+    type: object
+    minProperties: 1
+    maxProperties: 2
+    additionalProperties: false
+    properties:
+      path: {$ref: "#/$defs/nonEmptyString"}
+      rfc:
+        oneOf:
+          - {type: integer, minimum: 1}
+          - type: string
+            pattern: "^(?:[Rr][Ff][Cc]\\s*)?[1-9][0-9]*$"
+      url: {$ref: "#/$defs/nonEmptyString"}
+      sha256: {$ref: "#/$defs/sha256"}
+    oneOf:
+      - {required: [path]}
+      - {required: [rfc]}
+      - {required: [url]}
+
+  selector:
+    type: object
+    required: [section, block]
+    additionalProperties: false
+    properties:
+      section: {$ref: "#/$defs/sectionSelector"}
+      block: {$ref: "#/$defs/blockSelector"}
+
+  sectionSelector:
+    type: object
+    minProperties: 1
+    maxProperties: 1
+    additionalProperties: false
+    properties:
+      anchor: {$ref: "#/$defs/nonEmptyString"}
+      pn: {$ref: "#/$defs/nonEmptyString"}
+
+  blockSelector:
+    type: object
+    additionalProperties: false
+    properties:
+      anchor: {$ref: "#/$defs/nonEmptyString"}
+      name: {$ref: "#/$defs/nonEmptyString"}
+      pn: {$ref: "#/$defs/nonEmptyString"}
+      type: {$ref: "#/$defs/nonEmptyString"}
+      ordinal: {type: integer, minimum: 1}
+      all: {const: true}
+    not: {required: [ordinal, all]}
+
+  cddlBlock:
+    type: object
+    required: [document, selector]
+    additionalProperties: false
+    properties:
+      document: {$ref: "#/$defs/identifier"}
+      selector: {$ref: "#/$defs/selector"}
+      depends_on:
+        type: array
+        uniqueItems: true
+        items: {$ref: "#/$defs/identifier"}
+
+  ednSet:
+    type: object
+    required: [document, selector, cddl, entry_rule, expect]
+    additionalProperties: false
+    properties:
+      document: {$ref: "#/$defs/identifier"}
+      selector: {$ref: "#/$defs/selector"}
+      cddl:
+        oneOf:
+          - {$ref: "#/$defs/identifier"}
+          - type: array
+            minItems: 1
+            uniqueItems: true
+            items: {$ref: "#/$defs/identifier"}
+      entry_rule: {$ref: "#/$defs/nonEmptyString"}
+      expect: {enum: [accept, reject]}
