@@ -1,0 +1,78 @@
+PATH
+  remote: .
+  specs:
+    cddl-map (0.1.0)
+      abnftt (~> 0.2.11)
+      base32 (~> 0.3.4)
+      base45_lite (~> 1.0.1)
+      cbor-diag (= 0.11.8)
+      cddlc (= 0.4.5)
+      nokogiri (~> 1.19)
+      regexp-examples (~> 1.6)
+      scanf (~> 1.0)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    abnftt (0.2.11)
+    base32 (0.3.4)
+    base45_lite (1.0.1)
+    cbor-canonical (0.1.2)
+    cbor-deterministic (0.1.3)
+    cbor-diag (0.11.8)
+      cbor-canonical
+      cbor-deterministic
+      cbor-packed
+      json_pure
+      neatjson
+      treetop (~> 1)
+    cbor-packed (0.2.2)
+    cddlc (0.4.5)
+      neatjson (~> 0.10)
+      treetop (~> 1)
+    json_pure (2.8.1)
+    minitest (5.27.0)
+    neatjson (0.10.5)
+    nokogiri (1.19.4-aarch64-linux-gnu)
+      racc (~> 1.4)
+    nokogiri (1.19.4-aarch64-linux-musl)
+      racc (~> 1.4)
+    nokogiri (1.19.4-arm-linux-gnu)
+      racc (~> 1.4)
+    nokogiri (1.19.4-arm-linux-musl)
+      racc (~> 1.4)
+    nokogiri (1.19.4-arm64-darwin)
+      racc (~> 1.4)
+    nokogiri (1.19.4-x86_64-darwin)
+      racc (~> 1.4)
+    nokogiri (1.19.4-x86_64-linux-gnu)
+      racc (~> 1.4)
+    nokogiri (1.19.4-x86_64-linux-musl)
+      racc (~> 1.4)
+    polyglot (0.3.5)
+    racc (1.8.1)
+    rake (13.4.2)
+    regexp-examples (1.6.0)
+      regexp_property_values (~> 1.5)
+    regexp_property_values (1.5.2)
+    scanf (1.0.0)
+    treetop (1.6.18)
+      polyglot (~> 0.3)
+
+PLATFORMS
+  aarch64-linux-gnu
+  aarch64-linux-musl
+  arm-linux-gnu
+  arm-linux-musl
+  arm64-darwin
+  x86_64-darwin
+  x86_64-linux-gnu
+  x86_64-linux-musl
+
+DEPENDENCIES
+  cddl-map!
+  minitest (~> 5.25)
+  rake (~> 13.2)
+
+BUNDLED WITH
+   2.5.22
