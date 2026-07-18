@@ -20,7 +20,10 @@ Non-goals include parsing HTML or plain-text RFCs, discovering selectors, cachin
 
 ## Manifest version 1
 
-Unknown keys and wrong types are errors. Identifiers use letters, digits, `.`, `_`, and `-`.
+The safe-loaded YAML is validated against
+[`schema/manifest-v1.schema.yml`](schema/manifest-v1.schema.yml) with
+`json_schemer`; unknown keys and wrong types are errors. Identifiers use
+letters, digits, `.`, `_`, and `-`.
 
 ```yaml
 version: 1

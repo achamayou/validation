@@ -12,7 +12,7 @@ Gem::Specification.new do |spec|
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.2"
 
-  spec.files = Dir["bin/*", "lib/**/*.rb", "LICENSE", "README.md"]
+  spec.files = Dir["bin/*", "lib/**/*.rb", "schema/*.yml", "LICENSE", "README.md"]
   spec.bindir = "bin"
   spec.executables = ["cddl-map"]
   spec.require_paths = ["lib"]
@@ -25,6 +25,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "base45_lite", "~> 1.0.1"
   spec.add_dependency "cbor-diag", "= 0.11.8"
   spec.add_dependency "cddlc", "= 0.4.5"
+  spec.add_dependency "json_schemer", "~> 2.5"
   spec.add_dependency "nokogiri", "~> 1.19"
   spec.add_dependency "regexp-examples", "~> 1.6"
   spec.add_dependency "scanf", "~> 1.0"
