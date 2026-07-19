@@ -6,12 +6,13 @@ require "yaml"
 module CddlMap
   class Manifest
     SCHEMA_PATH = File.expand_path("../../schema/manifest-v1.schema.yml", __dir__)
+    CDDL_IDENTIFIER = /\A[A-Za-z@_$](?:[-.]*[A-Za-z@_$0-9])*\z/
     SCHEMER = JSONSchemer.schema(
       YAML.safe_load(File.binread(SCHEMA_PATH), aliases: false)
     )
 
     DocumentSpec = Struct.new(
-      :id, :source_kind, :source_value, :sha256,
+      :id, :source_kind, :source_value,
       keyword_init: true
     ) do
       def source_identity
@@ -20,7 +21,12 @@ module CddlMap
     end
 
     CddlSpec = Struct.new(
-      :name, :document, :selector, :depends_on,
+      :name, :document, :selector, :depends_on, :imports,
+      keyword_init: true
+    )
+
+    ImportSpec = Struct.new(
+      :cddl, :rules,
       keyword_init: true
     )
 
@@ -112,8 +118,7 @@ module CddlMap
           DocumentSpec.new(
             id: id,
             source_kind: kind,
-            source_value: source,
-            sha256: spec["sha256"]&.downcase
+            source_value: source
           )
         ]
       end
@@ -127,10 +132,35 @@ module CddlMap
             name: name,
             document: spec.fetch("document"),
             selector: selector(spec.fetch("selector")),
-            depends_on: spec.fetch("depends_on", []).dup.freeze
+            depends_on: spec.fetch("depends_on", []).dup.freeze,
+            imports: build_imports(spec.fetch("imports", []))
           )
         ]
       end
+    end
+
+    def build_imports(raw)
+      raw.map do |item|
+        if item.is_a?(String)
+          ImportSpec.new(cddl: item, rules: nil)
+        else
+          ImportSpec.new(
+            cddl: item.fetch("cddl"),
+            rules: import_rules(item.fetch("rules"))
+          )
+        end
+      end.freeze
+    end
+
+    def import_rules(rules)
+      return rules.dup.freeze if rules.all? { |rule| CDDL_IDENTIFIER.match?(rule) }
+
+      raise Error.new(
+        "manifest CDDL import contains an invalid rule name",
+        code: "manifest_schema",
+        path: path,
+        errors: rules.reject { |rule| CDDL_IDENTIFIER.match?(rule) }
+      )
     end
 
     def build_edn(raw)
@@ -169,6 +199,9 @@ module CddlMap
         reference!(documents, spec.document, "manifest.cddl.#{spec.name}.document", "document")
         spec.depends_on.each do |dependency|
           reference!(cddl, dependency, "manifest.cddl.#{spec.name}.depends_on", "CDDL block")
+        end
+        spec.imports.each do |dependency|
+          reference!(cddl, dependency.cddl, "manifest.cddl.#{spec.name}.imports", "CDDL block")
         end
       end
       edn.each_value do |spec|

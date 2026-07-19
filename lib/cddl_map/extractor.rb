@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require "digest"
 require "nokogiri"
 
 module CddlMap
@@ -16,8 +15,7 @@ module CddlMap
           "kind" => kind,
           "section" => section_attributes,
           "block" => attributes,
-          "position" => position,
-          "sha256" => Digest::SHA256.hexdigest(text)
+          "position" => position
         }
       end
     end

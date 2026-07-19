@@ -10,13 +10,14 @@ module CddlMap
       return JSON.pretty_generate({ "ok" => true, "result" => report }) if json
 
       accepted = report.fetch("examples").count { |example| example["outcome"] == "accepted" }
-      rejected = report.fetch("examples").length - accepted
+      rejected = report.fetch("examples").count { |example| example["outcome"] == "rejected" }
+      skipped = report.fetch("examples").count { |example| example["outcome"] == "skipped" }
       lock = report.fetch("lock")
       [
         "OK: #{report.fetch('documents').length} document(s), " \
         "#{report.fetch('cddl_blocks')} CDDL block(s), " \
         "#{report.fetch('examples').length} EDN example(s)",
-        "examples: #{accepted} accepted, #{rejected} rejected as expected",
+        "examples: #{accepted} accepted, #{rejected} rejected as expected, #{skipped} skipped",
         "lock: #{lock.fetch('status')} (#{lock.fetch('path')})"
       ].join("\n")
     end

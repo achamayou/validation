@@ -55,4 +55,51 @@ class CliTest < Minitest::Test
       assert_empty stderr.string
     end
   end
+
+  def test_human_result_counts_skipped_examples_separately
+    report = {
+      "documents" => [],
+      "cddl_blocks" => 1,
+      "examples" => [
+        { "outcome" => "accepted" },
+        { "outcome" => "rejected" },
+        { "outcome" => "skipped" }
+      ],
+      "lock" => { "status" => "verified", "path" => "example.lock.yml" }
+    }
+
+    output = CddlMap::Formatter.success(report)
+
+    assert_includes output, "examples: 1 accepted, 1 rejected as expected, 1 skipped"
+  end
+
+  def test_diagram_writes_markdown_without_resolving_documents
+    with_workspace do |workspace|
+      manifest = workspace.join("map.yml")
+      write_manifest(
+        manifest,
+        documents: { "doc" => { "path" => "missing.xml" } },
+        cddl: {
+          "schema" => cddl_spec(document: "doc", anchor: "schema")
+        },
+        edn: {
+          "example" => edn_spec(document: "doc", anchor: "example", cddl: "schema")
+        }
+      )
+      output = workspace.join("diagram.md")
+      stdout = StringIO.new
+      stderr = StringIO.new
+
+      status = CddlMap::CLI.start(
+        ["diagram", "--markdown", "--output", output.to_s, manifest.to_s],
+        stdout: stdout,
+        stderr: stderr
+      )
+
+      assert_equal 0, status
+      assert_includes output.binread, "```mermaid\nflowchart LR"
+      assert_empty stdout.string
+      assert_empty stderr.string
+    end
+  end
 end

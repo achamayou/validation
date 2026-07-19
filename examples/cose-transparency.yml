@@ -1,0 +1,99 @@
+version: 1
+
+documents:
+  rfc9052:
+    rfc: 9052
+  rfc9360:
+    rfc: 9360
+  rfc9942:
+    rfc: 9942
+  rfc9943:
+    rfc: 9943
+  rfc9995:
+    rfc: 9995
+
+cddl:
+  rfc9052-labels:
+    document: rfc9052
+    selector:
+      section: {anchor: label}
+      block: {type: cddl}
+  rfc9052-headers:
+    document: rfc9052
+    selector:
+      section: {anchor: header-parameters}
+      block: {type: cddl, all: true}
+    depends_on: [rfc9052-labels]
+  rfc9052-sign1:
+    document: rfc9052
+    selector:
+      section: {pn: section-4.2}
+      block: {type: cddl, all: true}
+    depends_on: [rfc9052-headers]
+  rfc9360-x509:
+    document: rfc9360
+    selector:
+      section: {anchor: sect-2}
+      block: {pn: section-2-11}
+  rfc9942-receipts:
+    document: rfc9942
+    selector:
+      section: {anchor: receipt-spec}
+      block: {type: cddl}
+  rfc9943-signed-statement:
+    document: rfc9943
+    selector:
+      section: {anchor: sec-signed-statement-examples}
+      block: {type: cddl}
+    imports: [rfc9360-x509]
+  rfc9943-transparent-statement:
+    document: rfc9943
+    selector:
+      section: {anchor: Receipt}
+      block: {type: cddl}
+    imports:
+      - cddl: rfc9943-signed-statement
+        rules: [COSE_Sign1]
+      - cddl: rfc9942-receipts
+        rules: [Receipt]
+  rfc9995-hash-envelope:
+    document: rfc9995
+    selector:
+      section: {anchor: hash-envelope-cddl}
+      block: {type: cddl}
+
+# These displays intentionally abbreviate cryptographic values with "...".
+# They are selection-locked, but are not machine-readable test vectors.
+edn:
+  rfc9942-receipt:
+    document: rfc9942
+    selector:
+      section: {anchor: receipt-spec}
+      block: {type: cbor-diag}
+    cddl: rfc9942-receipts
+    entry_rule: Signature_With_Receipt
+    expect: skip
+  rfc9943-signed-statement:
+    document: rfc9943
+    selector:
+      section: {anchor: sec-signed-statement-examples}
+      block: {type: cbor-diag, ordinal: 1}
+    cddl: rfc9943-signed-statement
+    entry_rule: Signed_Statement
+    expect: skip
+  rfc9943-transparent-statement:
+    document: rfc9943
+    selector:
+      section: {anchor: Receipt}
+      block: {type: cbor-diag, ordinal: 1}
+    cddl: rfc9943-transparent-statement
+    entry_rule: Transparent_Statement
+    expect: skip
+  rfc9995-hash-envelope:
+    document: rfc9995
+    selector:
+      section: {anchor: envelope-extended-diagnostic-notation}
+      block: {type: cbor-diag}
+    cddl: rfc9995-hash-envelope
+    entry_rule: Hash_Envelope
+    expect: skip

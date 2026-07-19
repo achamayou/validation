@@ -15,6 +15,10 @@ module CddlMap
       "m-#{slug[0, 40]}-#{Digest::SHA256.hexdigest(name)[0, 10]}"
     end
 
+    def self.import_stem(name)
+      module_stem(name).sub(/\Am-/, "i-")
+    end
+
     def initialize(directory, manifest, selections)
       @directory = directory
       @manifest = manifest
@@ -24,6 +28,7 @@ module CddlMap
 
     def stage
       stage_modules
+      stage_import_modules
       cddl_schemas = @manifest.cddl.keys.to_h do |name|
         [name, write_schema("schema-#{self.class.module_stem(name)}", [name])]
       end
@@ -67,6 +72,15 @@ module CddlMap
       end
     end
 
+    def stage_import_modules
+      @manifest.cddl.each_key do |name|
+        body = dependency_order([name]).map do |dependency|
+          ";# include #{@modules.fetch(dependency)}\n"
+        end.join
+        write("#{self.class.import_stem(name)}.cddl", body)
+      end
+    end
+
     def stage_examples(name)
       stem = self.class.module_stem(name).sub(/\Am-/, "e-")
       @selections.fetch("edn:#{name}").fetch(:matches).each_with_index.map do |match, index|
@@ -78,9 +92,11 @@ module CddlMap
 
     def write_schema(stem, roots)
       filename = "#{stem}.cddl"
-      body = dependency_order(roots).map do |name|
+      includes = dependency_order(roots)
+      body = includes.map do |name|
         ";# include #{@modules.fetch(name)}\n"
       end.join
+      body << import_order(includes).map { |spec| import_directive(spec) }.join
       write(filename, body)
       filename
     end
@@ -99,6 +115,47 @@ module CddlMap
       end
       roots.each { |root| visit.call(root) }
       order
+    end
+
+    def import_order(includes)
+      included = includes.to_h { |name| [name, true] }
+      visiting = {}
+      path = []
+      order = []
+      visit = lambda do |imported|
+        name = imported.cddl
+        return if included.key?(name)
+
+        if visiting[name]
+          start = path.index(name)
+          cycle = path[start..] + [name]
+          raise Error.new(
+            "CDDL import cycle: #{cycle.join(' -> ')}",
+            code: "manifest_import_cycle",
+            cycle: cycle
+          )
+        end
+
+        visiting[name] = true
+        path << name
+        order << imported
+        dependency_order([name]).each do |dependency|
+          @manifest.cddl.fetch(dependency).imports.each { |nested| visit.call(nested) }
+        end
+        path.pop
+        visiting.delete(name)
+      end
+      includes.each do |name|
+        @manifest.cddl.fetch(name).imports.each { |imported| visit.call(imported) }
+      end
+      order
+    end
+
+    def import_directive(spec)
+      source = self.class.import_stem(spec.cddl)
+      return ";# import #{source}\n" unless spec.rules
+
+      ";# import #{spec.rules.join(', ')} from #{source}\n"
     end
 
     def write(filename, content)

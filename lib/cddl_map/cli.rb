@@ -20,6 +20,8 @@ module CddlMap
       case command
       when "validate"
         run_validate
+      when "diagram"
+        run_diagram
       when "--version", "-v"
         @stdout.puts VERSION
         0
@@ -83,14 +85,56 @@ module CddlMap
       0
     end
 
+    def run_diagram
+      options = {
+        output: nil,
+        markdown: false,
+        help: false
+      }
+      parser = OptionParser.new do |opts|
+        opts.banner = "Usage: cddl-map diagram [options] MANIFEST"
+        opts.on("-o", "--output PATH", "Write the diagram to PATH") { |path| options[:output] = path }
+        opts.on("--markdown", "Wrap the Mermaid diagram in Markdown") { options[:markdown] = true }
+        opts.on("-h", "--help", "Show this help") { options[:help] = true }
+      end
+      parser.parse!(@arguments)
+      if options[:help]
+        @stdout.puts parser
+        return 0
+      end
+      unless @arguments.length == 1
+        raise OptionParser::ParseError, "exactly one MANIFEST is required"
+      end
+
+      manifest = Manifest.load(@arguments.first)
+      output = options[:markdown] ? Diagram.markdown(manifest) : Diagram.render(manifest)
+      if options[:output]
+        write_diagram(options[:output], output)
+      else
+        @stdout.write(output)
+      end
+      0
+    end
+
+    def write_diagram(path, output)
+      File.binwrite(File.expand_path(path), output)
+    rescue SystemCallError => e
+      raise Error.new(
+        "cannot write diagram #{path}: #{e.message}",
+        code: "diagram_io",
+        path: path
+      )
+    end
+
     def global_usage
       <<~USAGE.chomp
         Usage: cddl-map COMMAND [options]
 
         Commands:
           validate MANIFEST  extract and validate the declared CDDL and EDN blocks
+          diagram MANIFEST   render the manifest wiring as a Mermaid flowchart
 
-        Run `cddl-map validate --help` for validation options.
+        Run `cddl-map COMMAND --help` for command options.
       USAGE
     end
   end
