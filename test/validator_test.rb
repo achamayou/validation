@@ -72,6 +72,162 @@ class ValidatorTest < Minitest::Test
     end
   end
 
+  def test_cross_document_import_composes_its_eager_dependencies
+    with_workspace do |workspace|
+      first = workspace.join("first.xml")
+      second = workspace.join("second.xml")
+      write_rfcxml(
+        first,
+        sections: [
+          {
+            attributes: { anchor: "main" },
+            blocks: [
+              { anchor: "foundation", type: "cddl", text: "Foundation = uint\n" },
+              { anchor: "base", type: "cddl", text: "Base = Foundation\n" }
+            ]
+          }
+        ]
+      )
+      write_rfcxml(
+        second,
+        sections: [
+          {
+            attributes: { anchor: "main" },
+            blocks: [
+              { anchor: "message", type: "cddl", text: "Message = Base\n" },
+              { anchor: "example", type: "cbor-diag", text: "1\n" }
+            ]
+          }
+        ]
+      )
+      manifest = workspace.join("map.yml")
+      log = workspace.join("fake.log")
+      write_manifest(
+        manifest,
+        documents: {
+          "first" => { "path" => "first.xml" },
+          "second" => { "path" => "second.xml" }
+        },
+        cddl: {
+          "foundation" => cddl_spec(document: "first", anchor: "foundation"),
+          "base" => cddl_spec(document: "first", anchor: "base", depends_on: ["foundation"]),
+          "message" => cddl_spec(
+            document: "second",
+            anchor: "message",
+            imports: [{ "cddl" => "base", "rules" => ["Base"] }]
+          )
+        },
+        edn: {
+          "example" => edn_spec(document: "second", anchor: "example", cddl: "message")
+        }
+      )
+
+      run_fake(manifest, log_path: log, update_lock: true)
+
+      schema = "schema-#{CddlMap::Stager.module_stem('message')}.cddl"
+      record = read_log(log).find { |item| item["argv"].last == schema }
+      expected = [
+        ";# include #{CddlMap::Stager.module_stem('message')}\n",
+        ";# import Base from #{CddlMap::Stager.import_stem('base')}\n"
+      ].join
+      assert_equal expected, record.fetch("files").fetch(schema)
+
+      import_module = "#{CddlMap::Stager.import_stem('base')}.cddl"
+      expected_import = [
+        ";# include #{CddlMap::Stager.module_stem('foundation')}\n",
+        ";# include #{CddlMap::Stager.module_stem('base')}\n"
+      ].join
+      assert_equal expected_import, record.fetch("files").fetch(import_module)
+    end
+  end
+
+  def test_repeated_import_is_preserved_after_an_intervening_module
+    with_workspace do |workspace|
+      xml = workspace.join("doc.xml")
+      write_rfcxml(
+        xml,
+        sections: [
+          {
+            attributes: { anchor: "main" },
+            blocks: [
+              { anchor: "a", type: "cddl", text: "A = uint\n" },
+              { anchor: "b", type: "cddl", text: "B = A\n" },
+              { anchor: "message", type: "cddl", text: "Message = B\n" },
+              { anchor: "example", type: "cbor-diag", text: "1\n" }
+            ]
+          }
+        ]
+      )
+      manifest = workspace.join("map.yml")
+      log = workspace.join("fake.log")
+      write_manifest(
+        manifest,
+        documents: { "doc" => { "path" => "doc.xml" } },
+        cddl: {
+          "a" => cddl_spec(document: "doc", anchor: "a"),
+          "b" => cddl_spec(document: "doc", anchor: "b", imports: ["a"]),
+          "message" => cddl_spec(document: "doc", anchor: "message", imports: ["a", "b"])
+        },
+        edn: {
+          "example" => edn_spec(document: "doc", anchor: "example", cddl: "message")
+        }
+      )
+
+      run_fake(manifest, log_path: log, update_lock: true)
+
+      schema = "schema-#{CddlMap::Stager.module_stem('message')}.cddl"
+      record = read_log(log).find { |item| item["argv"].last == schema }
+      expected = [
+        ";# include #{CddlMap::Stager.module_stem('message')}\n",
+        ";# import #{CddlMap::Stager.import_stem('a')}\n",
+        ";# import #{CddlMap::Stager.import_stem('b')}\n",
+        ";# import #{CddlMap::Stager.import_stem('a')}\n"
+      ].join
+      assert_equal expected, record.fetch("files").fetch(schema)
+    end
+  end
+
+  def test_import_cycle_outside_the_eager_root_is_rejected
+    with_workspace do |workspace|
+      xml = workspace.join("doc.xml")
+      write_rfcxml(
+        xml,
+        sections: [
+          {
+            attributes: { anchor: "main" },
+            blocks: [
+              { anchor: "a", type: "cddl", text: "A = B\n" },
+              { anchor: "b", type: "cddl", text: "B = A\n" },
+              { anchor: "message", type: "cddl", text: "Message = A\n" },
+              { anchor: "example", type: "cbor-diag", text: "1\n" }
+            ]
+          }
+        ]
+      )
+      manifest = workspace.join("map.yml")
+      log = workspace.join("fake.log")
+      write_manifest(
+        manifest,
+        documents: { "doc" => { "path" => "doc.xml" } },
+        cddl: {
+          "a" => cddl_spec(document: "doc", anchor: "a", imports: ["b"]),
+          "b" => cddl_spec(document: "doc", anchor: "b", imports: ["a"]),
+          "message" => cddl_spec(document: "doc", anchor: "message", imports: ["a"])
+        },
+        edn: {
+          "example" => edn_spec(document: "doc", anchor: "example", cddl: "message")
+        }
+      )
+
+      error = assert_raises(CddlMap::Error) do
+        run_fake(manifest, log_path: log, update_lock: true)
+      end
+
+      assert_equal "manifest_import_cycle", error.code
+      assert_equal ["a", "b", "a"], error.details.fetch(:cycle)
+    end
+  end
+
   def test_dependency_cycle_is_materialized_once_and_left_to_cddlc
     with_workspace do |workspace|
       xml = workspace.join("doc.xml")
@@ -131,6 +287,19 @@ class ValidatorTest < Minitest::Test
       report = run_fake(manifest, log_path: log, update_lock: true)
 
       assert_equal "rejected", report.fetch("examples").fetch(0).fetch("outcome")
+    end
+  end
+
+  def test_skipped_example_is_locked_without_cddlc_validation
+    with_workspace do |workspace|
+      manifest, log = one_block_project(workspace, edn_text: "MALFORMED", expect: "skip")
+
+      report = run_fake(manifest, log_path: log, update_lock: true)
+
+      result = report.fetch("examples").fetch(0)
+      assert_equal "skip", result.fetch("expected")
+      assert_equal "skipped", result.fetch("outcome")
+      refute read_log(log).any? { |record| record.fetch("argv").include?("-d") }
     end
   end
 

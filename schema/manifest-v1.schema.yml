@@ -26,6 +26,11 @@ $defs:
   identifier:
     type: string
     pattern: "^[A-Za-z0-9][A-Za-z0-9_.-]*$"
+  cddlIdentifier:
+    type: string
+    allOf:
+      - pattern: "^[A-Za-z@_$](?:[-.]*[A-Za-z@_$0-9])*$"
+      - not: {pattern: "[^A-Za-z@_$0-9.-]"}
   nonEmptyString: {type: string, minLength: 1}
   sha256:
     type: string
@@ -90,6 +95,25 @@ $defs:
         type: array
         uniqueItems: true
         items: {$ref: "#/$defs/identifier"}
+      imports:
+        type: array
+        uniqueItems: true
+        items:
+          oneOf:
+            - {$ref: "#/$defs/identifier"}
+            - {$ref: "#/$defs/cddlImport"}
+
+  cddlImport:
+    type: object
+    required: [cddl, rules]
+    additionalProperties: false
+    properties:
+      cddl: {$ref: "#/$defs/identifier"}
+      rules:
+        type: array
+        minItems: 1
+        uniqueItems: true
+        items: {$ref: "#/$defs/cddlIdentifier"}
 
   ednSet:
     type: object
@@ -106,4 +130,4 @@ $defs:
             uniqueItems: true
             items: {$ref: "#/$defs/identifier"}
       entry_rule: {$ref: "#/$defs/nonEmptyString"}
-      expect: {enum: [accept, reject]}
+      expect: {enum: [accept, reject, skip]}

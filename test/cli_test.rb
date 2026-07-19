@@ -55,4 +55,21 @@ class CliTest < Minitest::Test
       assert_empty stderr.string
     end
   end
+
+  def test_human_result_counts_skipped_examples_separately
+    report = {
+      "documents" => [],
+      "cddl_blocks" => 1,
+      "examples" => [
+        { "outcome" => "accepted" },
+        { "outcome" => "rejected" },
+        { "outcome" => "skipped" }
+      ],
+      "lock" => { "status" => "verified", "path" => "example.lock.yml" }
+    }
+
+    output = CddlMap::Formatter.success(report)
+
+    assert_includes output, "examples: 1 accepted, 1 rejected as expected, 1 skipped"
+  end
 end

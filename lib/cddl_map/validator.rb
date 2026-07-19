@@ -119,6 +119,17 @@ module CddlMap
         end
 
         manifest.edn.flat_map do |name, spec|
+          if spec.expect == "skip"
+            next staged.examples.fetch(name).each_index.map do |index|
+              {
+                "set" => name,
+                "index" => index + 1,
+                "expected" => "skip",
+                "outcome" => "skipped"
+              }
+            end
+          end
+
           staged.examples.fetch(name).each_with_index.map do |example, index|
             outcome = runner.validate_example(
               schema: staged.edn_schemas.fetch(name),

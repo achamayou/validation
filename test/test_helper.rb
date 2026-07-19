@@ -51,11 +51,12 @@ module CddlMapTestSupport
     { "section" => section, "block" => block }
   end
 
-  def cddl_spec(document:, anchor:, depends_on: [])
+  def cddl_spec(document:, anchor:, depends_on: [], imports: [])
     {
       "document" => document,
       "selector" => selector(block: { "anchor" => anchor }),
-      "depends_on" => depends_on
+      "depends_on" => depends_on,
+      "imports" => imports
     }
   end
 

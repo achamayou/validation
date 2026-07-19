@@ -12,7 +12,7 @@ Gem::Specification.new do |spec|
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.2"
 
-  spec.files = Dir["bin/*", "lib/**/*.rb", "schema/*.yml", "LICENSE", "README.md"]
+  spec.files = Dir["bin/*", "lib/**/*.rb", "schema/*.yml", "examples/*.yml", "LICENSE", "README.md"]
   spec.bindir = "bin"
   spec.executables = ["cddl-map"]
   spec.require_paths = ["lib"]
