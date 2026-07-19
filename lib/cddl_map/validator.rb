@@ -26,13 +26,9 @@ module CddlMap
       reject_incompatible_options!
       manifest = Manifest.load(manifest_path)
       expected_lock = Lockfile.load(lock_path, required: @locked)
-      documents = DocumentResolver.new(
-        manifest,
-        allow_unpinned_urls: @update_lock,
-        lock_data: expected_lock
-      ).resolve_all
+      documents = DocumentResolver.new(manifest).resolve_all
       selections = extract(manifest, documents)
-      actual_lock = Lockfile.build(manifest, documents, selections)
+      actual_lock = Lockfile.build(documents, selections)
       Lockfile.verify!(expected_lock, actual_lock, path: lock_path) if expected_lock && !@update_lock
 
       example_results = validate_with_cddlc(manifest, selections)
@@ -43,8 +39,7 @@ module CddlMap
         "documents" => documents.values.map do |document|
           {
             "id" => document.id,
-            "source" => document.source,
-            "sha256" => document.sha256
+            "source" => document.source
           }
         end,
         "cddl_blocks" => manifest.cddl.length,

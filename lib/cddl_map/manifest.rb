@@ -12,7 +12,7 @@ module CddlMap
     )
 
     DocumentSpec = Struct.new(
-      :id, :source_kind, :source_value, :sha256,
+      :id, :source_kind, :source_value,
       keyword_init: true
     ) do
       def source_identity
@@ -118,8 +118,7 @@ module CddlMap
           DocumentSpec.new(
             id: id,
             source_kind: kind,
-            source_value: source,
-            sha256: spec["sha256"]&.downcase
+            source_value: source
           )
         ]
       end

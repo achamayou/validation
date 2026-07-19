@@ -41,8 +41,7 @@ class ExtractorTest < Minitest::Test
       document = CddlMap::DocumentResolver::ResolvedDocument.new(
         id: "doc",
         source: "path:doc.xml",
-        content: xml.binread,
-        sha256: "unused"
+        content: xml.binread
       )
       extractor = CddlMap::Extractor.new(document)
 
@@ -77,8 +76,7 @@ class ExtractorTest < Minitest::Test
     document = CddlMap::DocumentResolver::ResolvedDocument.new(
       id: "doc",
       source: "memory",
-      content: xml,
-      sha256: "unused"
+      content: xml
     )
     CddlMap::Extractor.new(document)
   end

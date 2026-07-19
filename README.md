@@ -1,7 +1,7 @@
 # cddl-map
 
 RFCs and Internet-Drafts often split CDDL schemas and CBOR examples across
-multiple XML blocks or documents. `cddl-map` is a reproducible wiring layer:
+multiple XML blocks or documents. `cddl-map` is a declarative wiring layer:
 it extracts declared EDN/CDN and CDDL blocks from RFCXML, materializes their
 dependency graph, and validates them with Carsten Bormann's
 [`cddlc`](https://github.com/cabo/cddlc).
@@ -16,17 +16,18 @@ This MVP targets Linux with Ruby 3.2 or newer. It pins `cddlc` 0.4.5 and the val
 2. Exact RFCXML character data is selected without rewriting the CDDL or EDN.
 3. The declared graph becomes deterministic cddlc `;# include` and `;# import` modules in an isolated directory.
 4. cddlc performs schema/module checks and validates each example against its entry rule.
-5. A lockfile pins document, selector, and extracted-block hashes to detect drift.
+5. An optional lockfile records source and selector identities to detect remapping.
 
 ## Scope
 
 Goals:
 
-- reproducibly map RFCXML `<sourcecode>` and legacy `<artwork>` blocks to named CDDL blocks and EDN sets;
+- declaratively map RFCXML `<sourcecode>` and legacy `<artwork>` blocks to named CDDL blocks and EDN sets;
 - express same-document and cross-document CDDL dependencies;
 - resolve collision-safe cross-document CDDL imports;
-- detect document, selector, and selected-text drift;
+- detect source, selector, and selected-element identity drift;
 - run cddlc CDDL 2/module processing, undefined-name checks, EDN parsing, and validation;
+- render the declared validation graph as Mermaid grouped by source document;
 - provide contextual human diagnostics and JSON output.
 
 Non-goals include parsing HTML or plain-text RFCs, discovering selectors, caching or vendoring remote documents, interpreting CDDL/EDN, and supporting Windows.
@@ -44,12 +45,10 @@ version: 1
 documents:
   draft:
     path: draft-example.xml       # relative to this manifest
-    # sha256: optional for local files
   cose:
     rfc: 9052                     # canonical RFCXML from rfc-editor.org
   remote-draft:
     url: https://www.ietf.org/archive/id/draft-example-03.xml
-    sha256: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 
 cddl:
   common:
@@ -94,9 +93,9 @@ Each document has exactly one source:
 | --- | --- |
 | `path` | Local RFCXML path, resolved relative to the manifest. |
 | `rfc` | Positive RFC number, resolved as `https://www.rfc-editor.org/rfc/rfcNNNN.xml`. |
-| `url` | HTTP(S) RFCXML URL. It needs `sha256`, an existing lock entry, or an initial `--update-lock` run. |
+| `url` | HTTP(S) RFCXML URL. |
 
-`sha256`, when present, pins the fetched XML bytes before parsing. The document map key is its stable identity inside the manifest and lockfile.
+The document map key is its stable identity inside the manifest and lockfile.
 
 ### Selectors
 
@@ -126,9 +125,20 @@ cddlc -2 -s EntryRule -d example.edn schema.cddl
 
 Every named CDDL root is checked. Each EDN item is then validated against its declared root collection and entry rule. `expect: skip` still extracts and locks a deliberately illustrative EDN block but does not send it to cddlc; use it only when the published text is intentionally abbreviated or otherwise not a machine-readable test vector.
 
+### Manifest diagrams
+
+`diagram` reads only the manifest and renders its document groups, CDDL dependency/import edges, and EDN-to-CDDL validation edges:
+
+```console
+bundle exec cddl-map diagram examples.yml
+bundle exec cddl-map diagram --markdown --output examples.md examples.yml
+```
+
+The default output is raw Mermaid. `--markdown` wraps it in a fenced block that GitHub renders directly. Diagram generation does not resolve or fetch any source documents.
+
 ### Published RFC example graph
 
-[`examples/cose-transparency.yml`](examples/cose-transparency.yml) maps a current set of related COSE and SCITT specifications:
+[`examples/cose-transparency.yml`](examples/cose-transparency.yml) maps a current set of related COSE and SCITT specifications. Its checked-in [Mermaid diagram](examples/cose-transparency.md) is generated from the manifest:
 
 | Source block | Wiring |
 | --- | --- |
@@ -137,18 +147,18 @@ Every named CDDL root is checked. Each EDN item is then validated against its de
 | [RFC 9943](https://www.rfc-editor.org/rfc/rfc9943.html) Transparent Statement | Selectively imports its receipt-aware `COSE_Sign1` rule from the RFC 9943 Signed Statement block and `Receipt` from RFC 9942. The local Sign1 shape is based on [RFC 9052](https://www.rfc-editor.org/rfc/rfc9052.html). |
 | [RFC 9995](https://www.rfc-editor.org/rfc/rfc9995.html) Hash Envelope | Checks the self-contained [RFC 9052](https://www.rfc-editor.org/rfc/rfc9052.html) COSE_Sign1 specialization alongside the transparency graph. |
 
-The RFC 9942, RFC 9943, and RFC 9995 EDN displays abbreviate cryptographic byte strings with `...`. The manifest marks those selections `expect: skip`, so their exact text and selectors remain drift-locked without pretending they are parseable validation vectors.
+The RFC 9942, RFC 9943, and RFC 9995 EDN displays abbreviate cryptographic byte strings with `...`. The manifest marks those selections `expect: skip`, so their selectors and selected-element identities remain locked without pretending they are parseable validation vectors.
 
-## Reproducibility and lockfiles
+## Selection lockfiles
 
-The default lockfile is the manifest name with `.lock.yml`, for example `examples.yml` becomes `examples.lock.yml`. It records resolved source identities and document SHA-256 values plus every normalized selector, selected element identity, position, and extracted-text SHA-256.
+The default lockfile is the manifest name with `.lock.yml`, for example `examples.yml` becomes `examples.lock.yml`. It records resolved source identities plus every normalized selector, selected element identity, and position. Document and extracted-text content is deliberately not pinned; changed content is validated on the next run.
 
 ```console
 bundle exec cddl-map validate --update-lock examples.yml
 bundle exec cddl-map validate --locked examples.yml
 ```
 
-An existing lockfile is always verified. `--locked` additionally requires one to exist. `--update-lock` replaces it only after all schema checks and expected example results succeed. Thus both draft content drift and selector drift fail before cddlc runs.
+An existing lockfile is always verified. `--locked` additionally requires one to exist. `--update-lock` replaces it only after all schema checks and expected example results succeed. Source or selector remapping fails before cddlc runs.
 
 ## CLI and diagnostics
 
@@ -156,6 +166,7 @@ An existing lockfile is always verified. `--locked` additionally requires one to
 bundle install
 bundle exec cddl-map validate [--locked | --update-lock] [--lock PATH] \
   [--cddlc PATH] [--json] MANIFEST
+bundle exec cddl-map diagram [--markdown] [--output PATH] MANIFEST
 ```
 
 Exit status is zero only when extraction, lock verification, all schema checks, and all expected outcomes succeed. Human errors include the document ID, logical selection, selector, cddlc command/exit status, and captured stdout/stderr where applicable. `--json` emits one object with `ok` and either `result` or `error`.

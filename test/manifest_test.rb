@@ -6,6 +6,7 @@ class ManifestTest < Minitest::Test
   def test_schema_rejects_invalid_manifests
     mutations = [
       ->(raw) { raw["documents"]["doc"]["unexpected"] = true },
+      ->(raw) { raw["documents"]["doc"]["sha256"] = "0" * 64 },
       ->(raw) { raw["cddl"]["schema"]["selector"]["block"] = {"ordinal" => 1, "all" => true} },
       ->(raw) { raw["documents"] = {9052 => {"rfc" => 9052}} }
     ]

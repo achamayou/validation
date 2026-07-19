@@ -17,6 +17,16 @@ class ValidatorTest < Minitest::Test
       ].join
       assert_equal expected, record.fetch("files").fetch(schema)
       assert_equal "updated", report.fetch("lock").fetch("status")
+
+      lock = YAML.safe_load(
+        File.binread(CddlMap::Lockfile.default_path(manifest.to_s)),
+        aliases: false
+      )
+      assert_equal({ "source" => "path:doc.xml" }, lock.dig("documents", "doc"))
+      assert_equal(
+        %w[block kind position section],
+        lock.dig("selections", "cddl:base", "blocks", 0).keys.sort
+      )
     end
   end
 
@@ -303,7 +313,7 @@ class ValidatorTest < Minitest::Test
     end
   end
 
-  def test_document_hash_and_selector_drift_fail_against_lock
+  def test_lock_tracks_selector_identity_but_not_document_content
     with_workspace do |workspace|
       xml = workspace.join("doc.xml")
       write_rfcxml(
@@ -333,11 +343,9 @@ class ValidatorTest < Minitest::Test
 
       write_drift_manifest(manifest, "one")
       xml.binwrite(xml.binread.sub("Message = uint", "Message = int"))
-      hash_error = assert_raises(CddlMap::Error) do
-        run_fake(manifest, log_path: log)
-      end
-      assert_equal "lock_drift", hash_error.code
-      assert hash_error.details.fetch(:differences).any? { |item| item.include?("documents.doc.sha256") }
+      report = run_fake(manifest, log_path: log)
+
+      assert_equal "verified", report.fetch("lock").fetch("status")
     end
   end
 

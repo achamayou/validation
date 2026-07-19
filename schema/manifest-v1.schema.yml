@@ -32,14 +32,10 @@ $defs:
       - pattern: "^[A-Za-z@_$](?:[-.]*[A-Za-z@_$0-9])*$"
       - not: {pattern: "[^A-Za-z@_$0-9.-]"}
   nonEmptyString: {type: string, minLength: 1}
-  sha256:
-    type: string
-    pattern: "^[0-9a-fA-F]{64}$"
-
   document:
     type: object
     minProperties: 1
-    maxProperties: 2
+    maxProperties: 1
     additionalProperties: false
     properties:
       path: {$ref: "#/$defs/nonEmptyString"}
@@ -49,7 +45,6 @@ $defs:
           - type: string
             pattern: "^(?:[Rr][Ff][Cc]\\s*)?[1-9][0-9]*$"
       url: {$ref: "#/$defs/nonEmptyString"}
-      sha256: {$ref: "#/$defs/sha256"}
     oneOf:
       - {required: [path]}
       - {required: [rfc]}

@@ -57,12 +57,12 @@ module CddlMap
       )
     end
 
-    def self.build(manifest, documents, selections)
+    def self.build(documents, selections)
       {
         "version" => VERSION,
         "documents" => documents.keys.sort.to_h do |id|
           document = documents.fetch(id)
-          [id, { "source" => document.source, "sha256" => document.sha256 }]
+          [id, { "source" => document.source }]
         end,
         "selections" => selections.keys.sort.to_h do |key|
           selection = selections.fetch(key)

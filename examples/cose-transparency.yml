@@ -63,7 +63,7 @@ cddl:
       block: {type: cddl}
 
 # These displays intentionally abbreviate cryptographic values with "...".
-# They are selected and drift-locked, but are not machine-readable test vectors.
+# They are selection-locked, but are not machine-readable test vectors.
 edn:
   rfc9942-receipt:
     document: rfc9942
